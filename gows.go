@@ -69,12 +69,12 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 	// Upgrade the connection for use with websockets
 	conn, err := s.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Print("upgrade:", err)
+		log.Println("upgrade:", err)
 		return
 	}
 	s.Conns.Set(connID, conn)
 
-	// Defer close the connection and delete it from the conns map
+	// Defer close the connection and delete it from the connection map
 	defer s.Conns.Delete(connID)
 	defer conn.Close()
 
@@ -94,8 +94,8 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 		if h, ok := s.Handlers[msgType]; ok {
 			if err := h(&context{
 				server:  s,
-				connID:  connID,
 				conn:    conn,
+				connID:  connID,
 				message: bmsg,
 			}); err != nil {
 				log.Println("handle:", err)

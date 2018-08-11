@@ -64,10 +64,8 @@ func (c *context) Send(s string) error {
 
 // SendAll will write the passed string to all connections
 func (c *context) SendAll(s string) {
-	c.server.Conns.Range(func(_, value interface{}) {
-		if conn, ok := value.(*websocket.Conn); ok {
-			send(conn, s)
-		}
+	c.server.Conns.Range(func(_ string, conn *websocket.Conn) {
+		send(conn, s)
 	})
 }
 

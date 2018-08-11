@@ -41,7 +41,7 @@ func (m *wsmap) Delete(id string) {
 }
 
 // Range performs the passed handler function on all connections
-func (m *wsmap) Range(f func(id, conn interface{})) {
+func (m *wsmap) Range(f func(id string, conn *websocket.Conn)) {
 	m.Lock()
 	defer m.Unlock()
 	for id, conn := range m.conns {
