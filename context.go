@@ -25,7 +25,7 @@ type Context interface {
 	Send(s string) error
 
 	// SendAll will write the passed string to all connections
-	SendAll(s string) error
+	SendAll(s string)
 }
 
 // context contains all context about the websocket message
@@ -63,14 +63,12 @@ func (c *context) Send(s string) error {
 }
 
 // SendAll will write the passed string to all connections
-func (c *context) SendAll(s string) error {
-	c.server.Conns.Range(func(_, value interface{}) bool {
+func (c *context) SendAll(s string) {
+	c.server.Conns.Range(func(_, value interface{}) {
 		if conn, ok := value.(*websocket.Conn); ok {
 			send(conn, s)
 		}
-		return true
 	})
-	return nil
 }
 
 // send will send the passed UTF8 message bytes to the passed connection

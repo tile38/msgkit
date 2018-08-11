@@ -7,7 +7,6 @@ package gows
 import (
 	"log"
 	"net/http"
-	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -25,7 +24,7 @@ type Server struct {
 	Router   *mux.Router
 	Upgrader *websocket.Upgrader
 	Handlers map[string]HandlerFunc
-	Conns    *sync.Map
+	Conns    *wsmap
 }
 
 // New creates a new gows Server and binds the passed path
@@ -35,7 +34,7 @@ func New(wsPath string) *Server {
 		Router:   mux.NewRouter(),
 		Upgrader: &websocket.Upgrader{},
 		Handlers: make(map[string]HandlerFunc),
-		Conns:    &sync.Map{},
+		Conns:    newWSMap(),
 	}
 
 	// Bind the websocket path and return the Server
@@ -73,7 +72,7 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 		log.Print("upgrade:", err)
 		return
 	}
-	s.Conns.Store(connID, conn)
+	s.Conns.Set(connID, conn)
 
 	// Defer close the connection and delete it from the conns map
 	defer s.Conns.Delete(connID)
