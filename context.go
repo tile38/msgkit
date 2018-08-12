@@ -29,7 +29,6 @@ type Context interface {
 }
 
 // context contains all context about the websocket message
-
 type context struct {
 	server  *Server
 	conn    *websocket.Conn
