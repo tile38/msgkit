@@ -62,11 +62,6 @@ func (s *Server) Listen(addr string) error {
 	return http.ListenAndServe(addr, s.Router)
 }
 
-// ConnIDs returns all connection IDs currently bound to the server
-func (s *Server) ConnIDs() []string {
-	return s.Conns.IDs()
-}
-
 // serveWs is the primary websocket handler method which
 func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 	// Generate an ID for the new websocket client
