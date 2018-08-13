@@ -5,6 +5,7 @@
 package msgkit
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -70,7 +71,7 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 	// Upgrade the connection to a thread safe websocket connection
 	conn, err := safews.NewConn(s.Upgrader, w, r)
 	if err != nil {
-		log.Println("upgrade:", err)
+		log.Println("Error upgrading :", err)
 		return
 	}
 	s.Conns.Set(connID, conn)
@@ -84,7 +85,7 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 		// Read the next message on the connection
 		_, bmsg, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("read:", err)
+			conn.Send(fmt.Sprintf("Error Reading : %s", err.Error()))
 			break
 		}
 
@@ -99,11 +100,10 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 				ConnID:  connID,
 				Message: bmsg,
 			}); err != nil {
-				log.Println("handle:", err)
-				break
+				conn.Send(fmt.Sprintf("Error Handling : %s", err.Error()))
 			}
 		} else {
-			log.Println("unsupported message:", string(bmsg))
+			conn.Send(fmt.Sprintf("Unsupported Message : %s", string(bmsg)))
 		}
 	}
 }
