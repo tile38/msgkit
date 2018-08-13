@@ -1,10 +1,6 @@
 package safews
 
-import (
-	"sync"
-
-	"github.com/gorilla/websocket"
-)
+import "sync"
 
 // Map is a thread safe map of thread safe websocket connections
 type Map struct {
@@ -24,13 +20,13 @@ func (m *Map) Set(id string, conn *Conn) {
 	m.mu.Unlock()
 }
 
-// SendText broadcasts a message to the connection
-func (m *Map) SendText(id string, data []byte) {
-	m.mu.Lock()
-	if c, ok := m.conns[id]; ok {
-		c.WriteMessage(websocket.TextMessage, data)
-	}
-	m.mu.Unlock()
+// Get retrieves and returns the connection that is bound to the passed
+// connection ID
+func (m *Map) Get(id string) (*Conn, bool) {
+	m.mu.RLock()
+	c, ok := m.conns[id]
+	m.mu.RUnlock()
+	return c, ok
 }
 
 // IDs returns all the connection ids in the websocket map

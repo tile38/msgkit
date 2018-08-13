@@ -1,6 +1,10 @@
 package main
 
-import "github.com/tile38/msgkit"
+import (
+	"log"
+
+	"github.com/tile38/msgkit"
+)
 
 func main() {
 	// Initialize a msgkit server
@@ -12,5 +16,5 @@ func main() {
 	})
 
 	// Listen for requests on port 8000
-	s.Listen(":8000")
+	log.Println(s.Listen(":8000"))
 }

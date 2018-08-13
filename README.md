@@ -19,7 +19,7 @@ func main() {
 	})
 
 	// Listen for requests on port 8000
-	s.Listen(":8000")
+	log.Println(s.Listen(":8000"))
 }
 ```
 

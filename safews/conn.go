@@ -10,7 +10,7 @@ import (
 // Conn is a thread safe websocket connection that only exposes the ability to
 // write to the websocket connection
 type Conn struct {
-	mu   sync.RWMutex
+	mu   sync.Mutex
 	conn *websocket.Conn
 }
 
@@ -27,24 +27,21 @@ func NewConn(u *websocket.Upgrader, w http.ResponseWriter,
 	return &Conn{conn: conn}, nil
 }
 
+// ReadMessage reads the next message from the websocket connection
+func (c *Conn) ReadMessage() (messageType int, p []byte, err error) {
+	return c.conn.ReadMessage()
+}
+
+// Send writes the passed bytes to the connection
+func (c *Conn) Send(data string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.conn.WriteMessage(websocket.TextMessage, []byte(data))
+}
+
 // Close closes the thread safe websocket connection
 func (c *Conn) Close() {
 	c.mu.Lock()
 	c.conn.Close()
 	c.mu.Unlock()
-}
-
-// ReadMessage reads the next message from the websocket connection
-func (c *Conn) ReadMessage() (messageType int, p []byte, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.conn.ReadMessage()
-}
-
-// WriteMessage writes the passed bytes to the connection in the passed message
-// format
-func (c *Conn) WriteMessage(messageType int, data []byte) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.conn.WriteMessage(messageType, data)
 }
