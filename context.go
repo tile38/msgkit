@@ -1,19 +1,16 @@
-package gows
+package msgkit
 
 import (
 	"encoding/json"
-	"net"
 
 	"github.com/gorilla/websocket"
+	"github.com/tile38/msgkit/safews"
 )
 
 // Context defines all functionality for handling a websocket message
 type Context interface {
 	// ConnID returns the ID of the client connection
 	ConnID() string
-
-	// RemoteAddr returns the net Address of the client connection
-	RemoteAddr() net.Addr
 
 	// Message returns the full message stored in the context
 	Message() string
@@ -23,15 +20,12 @@ type Context interface {
 
 	// Send will write the passed string to the connection
 	Send(s string) error
-
-	// SendAll will write the passed string to all connections
-	SendAll(s string)
 }
 
 // context contains all context about the websocket message
 type context struct {
 	server  *Server
-	conn    *websocket.Conn
+	conn    *safews.Conn
 	connID  string
 	message []byte
 }
@@ -39,11 +33,6 @@ type context struct {
 // ConnID returns the ID of the client connection
 func (c *context) ConnID() string {
 	return c.connID
-}
-
-// RemoteAddr returns the net Address of the client connection
-func (c *context) RemoteAddr() net.Addr {
-	return c.conn.RemoteAddr()
 }
 
 // Message returns the full message stored in the context
@@ -61,14 +50,7 @@ func (c *context) Send(s string) error {
 	return send(c.conn, s)
 }
 
-// SendAll will write the passed string to all connections
-func (c *context) SendAll(s string) {
-	c.server.Conns.Range(func(_ string, conn *websocket.Conn) {
-		send(conn, s)
-	})
-}
-
 // send will send the passed UTF8 message bytes to the passed connection
-func send(conn *websocket.Conn, msg string) error {
+func send(conn *safews.Conn, msg string) error {
 	return conn.WriteMessage(websocket.TextMessage, []byte(msg))
 }

@@ -1,20 +1,20 @@
-# gows
+# msgkit
 
-gows is a simple wrapper for gorillas websocket package. It makes it quick and easy to write a websocket server using traditional http style request/message handlers
+msgkit is a simple wrapper for gorillas websocket package. It makes it quick and easy to write a websocket server using traditional http style request/message handlers
 
 ## Usage
 
 ```go
 package main
 
-import "github.com/tile38/gows"
+import "github.com/tile38/msgkit"
 
 func main() {
-    // Initialize a gows server
-	s := gows.New("/ws")
+    // Initialize a msgkit server
+	s := msgkit.New("/ws")
 
 	// Bind a response handler to any JSON message that contains a "type" of "ID"
-	s.Handle("ID", func(c gows.Context) error {
+	s.Handle("ID", func(c msgkit.Context) error {
 		return c.Send(c.ConnID())
 	})
 
@@ -25,7 +25,7 @@ func main() {
 
 ## The Idea
 
-The gows payload is a JSON payload containing AT LEAST a message type. Any websocket message with a "type" field will be passed to its respective handler defined in your go code. You can choose to nest payloads within another field in your JSON message or pass fields at the parent level.
+The msgkit payload is a JSON payload containing AT LEAST a message type. Any websocket message with a "type" field will be passed to its respective handler defined in your go code. You can choose to nest payloads within another field in your JSON message or pass fields at the parent level.
 
 Note: The "type" should indicate both your method AND resource if applicable.
 

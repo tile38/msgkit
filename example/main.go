@@ -1,13 +1,13 @@
 package main
 
-import "github.com/tile38/gows"
+import "github.com/tile38/msgkit"
 
 func main() {
-	// Initialize a gows server
-	s := gows.New("/ws")
+	// Initialize a msgkit server
+	s := msgkit.New("/ws")
 
 	// Bind a response handler to any JSON message that contains a "type" of "ID"
-	s.Handle("ID", func(c gows.Context) error {
+	s.Handle("ID", func(c msgkit.Context) error {
 		return c.Send(c.ConnID())
 	})
 
