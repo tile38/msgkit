@@ -5,7 +5,6 @@
 package msgkit
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -85,7 +84,7 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 		// Read the next message on the connection
 		_, bmsg, err := conn.ReadMessage()
 		if err != nil {
-			conn.Send(fmt.Sprintf("Error Reading : %s", err.Error()))
+			conn.Send(jsonError("Error Reading : %s", err.Error()))
 			break
 		}
 
@@ -100,10 +99,10 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 				ConnID:  connID,
 				Message: bmsg,
 			}); err != nil {
-				conn.Send(fmt.Sprintf("Error Handling : %s", err.Error()))
+				conn.Send(jsonError("Error Handling : %s", err.Error()))
 			}
 		} else {
-			conn.Send(fmt.Sprintf("Unsupported Message : %s", string(bmsg)))
+			conn.Send(jsonError("Unsupported message type : %s", string(bmsg)))
 		}
 	}
 }
