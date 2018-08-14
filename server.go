@@ -17,7 +17,7 @@ import (
 
 // HandlerFunc is a type of function that is used for handling websocket
 // messages
-type HandlerFunc func(context *Context) error
+type HandlerFunc func(context *Context)
 
 // EventFunc is a type of function that handles basic websocket connection
 // events such as onOpen and onClose
@@ -118,14 +118,12 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 
 		// If a handler exists for the message type, handle it
 		if h, ok := s.Handlers[msgType]; ok {
-			if err := h(&Context{
+			h(&Context{
 				Server:  s,
 				Conn:    conn,
 				ConnID:  connID,
 				Message: bmsg,
-			}); err != nil {
-				conn.Send(jsonError("Error Handling : %s", err.Error()))
-			}
+			})
 		} else {
 			conn.Send(jsonError("Unsupported message type : %s", string(bmsg)))
 		}
