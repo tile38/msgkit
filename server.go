@@ -19,13 +19,21 @@ import (
 // messages
 type HandlerFunc func(context *Context) error
 
+// EventFunc is a type of function that handles basic websocket connection
+// events such as onOpen and onClose
+type EventFunc func(connID string, conn *safews.Conn)
+
 // Server is a package of all required dependencies to run a msgkit websocket
 // server
 type Server struct {
 	Router   *mux.Router
 	Upgrader *websocket.Upgrader
-	Handlers map[string]HandlerFunc
 	Conns    *safews.Map
+
+	// Event handlers for all connections
+	Handlers map[string]HandlerFunc
+	onOpen   EventFunc
+	onClose  EventFunc
 }
 
 // New creates a new msgkit Server and binds the passed path
@@ -42,6 +50,14 @@ func New(wsPath string) *Server {
 	s.Router.HandleFunc(wsPath, s.serveWs)
 	return s
 }
+
+// OnOpen binds an on-open handler to the server which will be triggered every
+// time a connection is made
+func (s *Server) OnOpen(handler EventFunc) { s.onOpen = handler }
+
+// OnClose binds an on-close handler to the server which will trigger every
+// time a connection is closed
+func (s *Server) OnClose(handler EventFunc) { s.onClose = handler }
 
 // Handle adds a HandlerFunc to the map of websocket message handlers
 func (s *Server) Handle(name string, handler HandlerFunc) {
@@ -75,11 +91,20 @@ func (s *Server) serveWs(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Conns.Set(connID, conn)
 
-	// Defer close the connection and delete it from the connection map
-	defer s.Conns.Delete(connID)
-	defer conn.Close()
+	// Trigger the onOpen handler if one is defined
+	if s.onOpen != nil {
+		s.onOpen(connID, conn)
+	}
 
-	// For every message that comes through on the websocket
+	defer s.Conns.Delete(connID) // Defer delete the connection from the map
+	defer conn.Close()           // Defer close the websocket connection
+
+	// Trigger the onClose handler if one is defined
+	if s.onClose != nil {
+		defer s.onClose(connID, conn)
+	}
+
+	// For every message that comes through on the connection
 	for {
 		// Read the next message on the connection
 		_, bmsg, err := conn.ReadMessage()
