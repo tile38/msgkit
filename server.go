@@ -53,22 +53,30 @@ func New(wsPath string) *Server {
 
 // OnOpen binds an on-open handler to the server which will be triggered every
 // time a connection is made
-func (s *Server) OnOpen(handler EventFunc) { s.onOpen = handler }
+func (s *Server) OnOpen(handler EventFunc) *Server {
+	s.onOpen = handler
+	return s
+}
 
 // OnClose binds an on-close handler to the server which will trigger every
 // time a connection is closed
-func (s *Server) OnClose(handler EventFunc) { s.onClose = handler }
+func (s *Server) OnClose(handler EventFunc) *Server {
+	s.onClose = handler
+	return s
+}
 
 // Handle adds a HandlerFunc to the map of websocket message handlers
-func (s *Server) Handle(name string, handler HandlerFunc) {
+func (s *Server) Handle(name string, handler HandlerFunc) *Server {
 	s.Handlers[name] = handler
+	return s
 }
 
 // Static binds the passed directory path to the prefix path
-func (s *Server) Static(prefix, path string) {
+func (s *Server) Static(prefix, path string) *Server {
 	fs := http.FileServer(http.Dir(path))
 	h := http.StripPrefix(prefix, fs)
 	s.Router.PathPrefix(prefix).Handler(h)
+	return s
 }
 
 // Listen binds the standard websocket handler containing all handling logic
