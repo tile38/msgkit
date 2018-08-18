@@ -13,6 +13,7 @@ import (
 )
 
 func TestHandler(t *testing.T) {
+	const addr = "localhost:17892"
 	const connsN = 10  // number of concurrent sockets
 	const msgsN = 1000 // number of messages per socket
 
@@ -32,7 +33,7 @@ func TestHandler(t *testing.T) {
 	cwg.Add(connsN)
 	h.OnClose = func(id string) { cwg.Done() }
 
-	srv := &http.Server{Addr: ":17892"}
+	srv := &http.Server{Addr: addr}
 	http.Handle("/ws", &h)
 
 	var swg sync.WaitGroup
@@ -50,7 +51,7 @@ func TestHandler(t *testing.T) {
 	for i := 0; i < connsN; i++ {
 		go func(i int) {
 			defer wg.Done()
-			u := url.URL{Scheme: "ws", Host: "localhost:17892", Path: "/ws"}
+			u := url.URL{Scheme: "ws", Host: addr, Path: "/ws"}
 			c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 			if err != nil {
 				panic(err)
