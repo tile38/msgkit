@@ -1,6 +1,6 @@
 # msgkit
 
-msgkit is a simple wrapper for gorillas websocket package. It makes it quick and easy to write a websocket server using traditional http style request/message handlers
+msgkit is a quick and easy websocket message handling package for Go.
 
 ## Usage
 
@@ -14,22 +14,29 @@ import (
 )
 
 func main() {
-	// Initialize a msgkit server
-	s := msgkit.New("/ws")
+	// Initialize a msgkit handler
+	var h msgkit.Handler
 
-	// Bind a response handler to any JSON message that contains a "type" of "ID"
-	s.Handle("ID", func(c *msgkit.Context) {
-		c.Conn.Send(c.ConnID)
+	// Bind a response handler to any JSON message with the "type" of "Echo"
+	h.Handle("Echo", func(id, msg string) {
+		h.Send(id, msg)
 	})
 
-	// Listen for requests on port 8000
-	log.Println(s.Listen(":8000"))
+	// Bind the handler to url path "/ws"
+	http.Handle("/ws", &h)
+
+	// start serving on port 8000
+	srv := &http.Server{Addr: ":8000"}
+	log.Fatal(srv.ListenAndServe())
 }
 ```
 
 ## The Idea
 
-The msgkit payload is a JSON payload containing AT LEAST a message type. Any websocket message with a "type" field will be passed to its respective handler defined in your go code. You can choose to nest payloads within another field in your JSON message or pass fields at the parent level.
+The msgkit payload is a JSON payload containing AT LEAST a message type. Any
+websocket message with a "type" field will be passed to its respective handler
+defined in your go code. You can choose to nest payloads within another field 
+in your JSON message or pass fields at the parent level.
 
 Note: The "type" should indicate both your method AND resource if applicable.
 
@@ -61,8 +68,7 @@ Note: The "type" should indicate both your method AND resource if applicable.
 }
 ```
 
-The MIT License (MIT)
-=====================
+# The MIT License (MIT)
 
 Copyright © 2018 Tile38, LLC
 
