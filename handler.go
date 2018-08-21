@@ -48,8 +48,8 @@ func (h *Handler) Send(id string, message string) {
 	}
 }
 
-// RangeIDs ranges over all ids
-func (h *Handler) RangeIDs(f func(id string) bool) {
+// Range ranges over all ids
+func (h *Handler) Range(f func(id string) bool) {
 	h.socks.Range(func(key, value interface{}) bool {
 		return f(key.(string))
 	})

@@ -61,7 +61,7 @@ func TestHandler(t *testing.T) {
 			// send and receive back basic messages
 			msgm := make(map[string]bool)
 			for j := 0; j < msgsN; j++ {
-				msg := fmt.Sprintf(`{"type":"h%d","message":%d}`, j%3, j)
+				msg := fmt.Sprintf(`{"type":"h%d","message":"%d%d"}`, j%3, j, i)
 				c.WriteMessage(1, []byte(msg))
 				msgm[msg] = true
 			}
@@ -89,5 +89,4 @@ func TestHandler(t *testing.T) {
 	if opened != connsN {
 		t.Fatalf("expected '%v', got '%v'", connsN, opened)
 	}
-	println("done")
 }
