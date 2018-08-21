@@ -15,6 +15,11 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+type sock struct {
+	mu   sync.Mutex
+	conn *websocket.Conn
+}
+
 // Handler is a package of all required dependencies to run a msgkit websocket
 // server
 type Handler struct {
@@ -44,13 +49,15 @@ func (h *Handler) Handle(name string, handler func(id, msg string)) {
 // Send a message to a websocket.
 func (h *Handler) Send(id string, message string) {
 	if v, ok := h.socks.Load(id); ok {
-		v.(*websocket.Conn).WriteMessage(1, []byte(message))
+		v.(*sock).mu.Lock()
+		v.(*sock).conn.WriteMessage(1, []byte(message))
+		v.(*sock).mu.Unlock()
 	}
 }
 
 // Range ranges over all ids
 func (h *Handler) Range(f func(id string) bool) {
-	h.socks.Range(func(key, value interface{}) bool {
+	h.socks.Range(func(key, _ interface{}) bool {
 		return f(key.(string))
 	})
 }
@@ -72,7 +79,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	id := hex.EncodeToString(b[:])
 
 	// Store the sockets
-	h.socks.Store(id, conn)
+	h.socks.Store(id, &sock{conn: conn})
 	defer h.socks.Delete(id) // Defer unregister the connection
 
 	// Trigger the OnOpen handler if one is defined
