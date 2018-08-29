@@ -18,6 +18,7 @@ import (
 type sock struct {
 	mu   sync.Mutex
 	conn *websocket.Conn
+	ctx  interface{}
 }
 
 // Handler is a package of all required dependencies to run a msgkit websocket
@@ -36,6 +37,10 @@ type Handler struct {
 	// OnClose binds an on-close handler to the server which will trigger every
 	// time a connection is closed
 	OnClose func(id string)
+
+	// Prepare binds a connection preperation handler to the server which will
+	// trigger every time a connection is opened
+	Prepare func(id string, r *http.Request) (ctx interface{}, accept bool)
 }
 
 // Handle adds a HandlerFunc to the map of websocket message handlers
@@ -62,9 +67,33 @@ func (h *Handler) Range(f func(id string) bool) {
 	})
 }
 
+// GetContext retrieves and returns a context if one was created and bound to
+// the connection ID passed
+func (h *Handler) GetContext(id string) interface{} {
+	if v, ok := h.socks.Load(id); ok {
+		return v.(*sock).ctx
+	}
+	return nil
+}
+
 // ServeHTTP is the primary websocket handler method and conforms to the
 // http.Handler interface.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// generate a unique identifier
+	var b [12]byte
+	rand.Read(b[:])
+	id := hex.EncodeToString(b[:])
+
+	// Create a context and prepare the connection
+	var ctx interface{}
+	if h.Prepare != nil {
+		var accept bool
+		ctx, accept = h.Prepare(id, r)
+		if !accept {
+			return
+		}
+	}
+
 	// Open and register the websocket
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -73,13 +102,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close() // Defer close the websocket
 
-	// generate a unique identifier
-	var b [12]byte
-	rand.Read(b[:])
-	id := hex.EncodeToString(b[:])
-
 	// Store the sockets
-	h.socks.Store(id, &sock{conn: conn})
+	h.socks.Store(id, &sock{conn: conn, ctx: ctx})
 	defer h.socks.Delete(id) // Defer unregister the connection
 
 	// Trigger the OnOpen handler if one is defined
