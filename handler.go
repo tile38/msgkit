@@ -31,16 +31,14 @@ type Handler struct {
 	handlers map[string]func(id, msg string)
 
 	// OnOpen binds an on-open handler to the server which will be triggered
-	// every time a connection is made
-	OnOpen func(id string)
+	// every time a connection is made. It returns a context that will be
+	// applied to the sock and a boolean indicating whether or not to listen
+	// for messages
+	OnOpen func(id string, req *http.Request) (ctx interface{}, accept bool)
 
 	// OnClose binds an on-close handler to the server which will trigger every
 	// time a connection is closed
 	OnClose func(id string)
-
-	// Prepare binds a connection preperation handler to the server which will
-	// trigger every time a connection is opened
-	Prepare func(id string, r *http.Request) (ctx interface{}, accept bool)
 }
 
 // Handle adds a HandlerFunc to the map of websocket message handlers
@@ -67,9 +65,9 @@ func (h *Handler) Range(f func(id string) bool) {
 	})
 }
 
-// GetContext retrieves and returns a context if one was created and bound to
+// Context retrieves and returns a context if one was created and bound to
 // the connection ID passed
-func (h *Handler) GetContext(id string) interface{} {
+func (h *Handler) Context(id string) interface{} {
 	if v, ok := h.socks.Load(id); ok {
 		return v.(*sock).ctx
 	}
@@ -79,20 +77,10 @@ func (h *Handler) GetContext(id string) interface{} {
 // ServeHTTP is the primary websocket handler method and conforms to the
 // http.Handler interface.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// generate a unique identifier
+	// Generate a unique identifier for the connection
 	var b [12]byte
 	rand.Read(b[:])
 	id := hex.EncodeToString(b[:])
-
-	// Create a context and prepare the connection
-	var ctx interface{}
-	if h.Prepare != nil {
-		var accept bool
-		ctx, accept = h.Prepare(id, r)
-		if !accept {
-			return
-		}
-	}
 
 	// Open and register the websocket
 	conn, err := h.upgrader.Upgrade(w, r, nil)
@@ -102,17 +90,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close() // Defer close the websocket
 
-	// Store the sockets
-	h.socks.Store(id, &sock{conn: conn, ctx: ctx})
+	// Create and store the new sock reference
+	sock := &sock{conn: conn}
+	h.socks.Store(id, sock)
 	defer h.socks.Delete(id) // Defer unregister the connection
 
 	// Trigger the OnOpen handler if one is defined
 	if h.OnOpen != nil {
-		h.OnOpen(id)
+		ctx, accept := h.OnOpen(id, r)
+		if !accept {
+			return
+		}
+		sock.ctx = ctx
+		h.socks.Store(id, sock)
 	}
 
+	// Defer trigger the OnClose handler if one is defined
 	if h.OnClose != nil {
-		// Defer trigger the OnClose handler if one is defined
 		defer h.OnClose(id)
 	}
 
