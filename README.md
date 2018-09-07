@@ -1,5 +1,8 @@
 # msgkit
 
+[![GoDoc](https://godoc.org/github.com/tile38/msgkit?status.svg)](https://godoc.org/github.com/tile38/msgkit)
+
+
 msgkit is a quick and easy websocket message handling package for Go.
 
 ## Usage
