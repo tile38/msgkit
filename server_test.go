@@ -17,24 +17,24 @@ func TestHandler(t *testing.T) {
 	const connsN = 10  // number of concurrent sockets
 	const msgsN = 1000 // number of messages per socket
 
-	var h Handler
+	s := NewServer(nil)
 
 	// create handlers
-	h.Handle("h0", func(id, msg string) { h.Send(id, msg) })
-	h.Handle("h1", func(id, msg string) { h.Send(id, msg) })
-	h.Handle("h2", func(id, msg string) { h.Send(id, msg) })
+	s.On("h0", func(so *Socket, msg string) { so.Send("h0", msg) })
+	s.On("h1", func(so *Socket, msg string) { so.Send("h1", msg) })
+	s.On("h2", func(so *Socket, msg string) { so.Send("h2", msg) })
 
 	// count the number of opens
 	var opened int32
-	h.OnOpen = func(id string) { atomic.AddInt32(&opened, 1) }
+	s.On("connected", func(_ *Socket, _ string) { atomic.AddInt32(&opened, 1) })
 
 	// count/wait on all closes
 	var cwg sync.WaitGroup
 	cwg.Add(connsN)
-	h.OnClose = func(id string) { cwg.Done() }
+	s.On("disconnected", func(_ *Socket, _ string) { cwg.Done() })
 
 	srv := &http.Server{Addr: addr}
-	http.Handle("/ws", &h)
+	http.Handle("/ws", s)
 
 	var swg sync.WaitGroup
 	swg.Add(1)
@@ -61,7 +61,7 @@ func TestHandler(t *testing.T) {
 			// send and receive back basic messages
 			msgm := make(map[string]bool)
 			for j := 0; j < msgsN; j++ {
-				msg := fmt.Sprintf(`{"type":"h%d","message":"%d%d"}`, j%3, j, i)
+				msg := fmt.Sprintf(`{"type":"h%d","data":"%d%d"}`, j%3, j, i)
 				c.WriteMessage(1, []byte(msg))
 				msgm[msg] = true
 			}
@@ -75,7 +75,7 @@ func TestHandler(t *testing.T) {
 			// send an invalid type
 			c.WriteMessage(1, []byte(`{"type":"invalid"}`))
 			_, msgb, _ := c.ReadMessage()
-			if gjson.GetBytes(msgb, "type").String() != "Error" {
+			if gjson.GetBytes(msgb, "type").String() != "error" {
 				panic("expected error")
 			}
 		}(i)
