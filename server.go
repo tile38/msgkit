@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/tidwall/gjson"
 )
 
 const (
@@ -31,7 +30,7 @@ type Server struct {
 
 // HandlerFunc is a type that defines the function signature of a msgkit request
 // handler
-type HandlerFunc func(so *Socket, msg string)
+type HandlerFunc func(so *Socket, msg *Message)
 
 // NewServer creates a new Server using the passed custom websocket upgrader
 func NewServer(u *websocket.Upgrader) *Server {
@@ -84,18 +83,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Trigger a connected listener if one is defined
 	if s.connected != nil {
-		s.connected(so, `{"type":"connected"}`)
+		s.connected(so, NewMessage(EventConnected))
 	}
 
 	// Trigger an internal disconnected listener if one is defined
 	if s.disconnected != nil {
-		defer s.disconnected(so, `{"type":"disconnected"}`)
+		defer s.disconnected(so, NewMessage(EventDisconnected))
 	}
 
 	// For every message that comes through on the connection
 	for {
 		// Read the message off of the connection
-		msg, err := so.readMessage()
+		m, err := so.readMessage()
 		if err != nil {
 			so.Send("error", "Failed to read message")
 			return
@@ -103,8 +102,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		// If a handler exists for the message type, handle it, otherwise emit
 		// an error
-		if fn, ok := s.handlers[gjson.Get(msg, "type").String()]; ok {
-			fn(so, msg)
+		if fn, ok := s.handlers[m.Type]; ok {
+			fn(so, m)
 		} else {
 			so.Send("error", "Unknown type")
 		}

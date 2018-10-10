@@ -81,11 +81,11 @@ func (s *Socket) close() { s.conn.Close() }
 
 // readMessage reads the next message off of the connection, returning the type
 // and data decoded from the message
-func (s *Socket) readMessage() (string, error) {
+func (s *Socket) readMessage() (*Message, error) {
 	// Read the next message off of the connection
 	_, msgb, err := s.conn.ReadMessage()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(msgb), nil
+	return ParseMessage(msgb), nil
 }
