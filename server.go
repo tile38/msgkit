@@ -12,11 +12,20 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	// EventConnected is an event name that is fired when a client connects
+	EventConnected = "connected"
+	// EventDisconnected is an event name that is fired when a client disconnects
+	EventDisconnected = "disconnected"
+)
+
 // Server contains all required dependencies to run a msgkit websocket server
 type Server struct {
-	sockets  sync.Map               // Map of Sockets
-	upgrader *websocket.Upgrader    // Shared upgrader
-	handlers map[string]HandlerFunc // All event handlers
+	sockets      sync.Map               // Map of Sockets
+	upgrader     *websocket.Upgrader    // Shared upgrader
+	connected    HandlerFunc            // Handler fired on a connection
+	disconnected HandlerFunc            // Handler fired on a disconnection
+	handlers     map[string]HandlerFunc // All user-defined event handlers
 }
 
 // HandlerFunc is a type that defines the function signature of a msgkit request
@@ -34,12 +43,19 @@ func NewServer(u *websocket.Upgrader) *Server {
 	}
 }
 
-// On binds a handler for a specified type
-func (s *Server) On(name string, handler HandlerFunc) {
-	if s.handlers == nil {
-		s.handlers = make(map[string]HandlerFunc)
+// Handle binds a handler for a specified type
+func (s *Server) Handle(name string, handler HandlerFunc) {
+	switch name {
+	case EventConnected:
+		s.connected = handler
+	case EventDisconnected:
+		s.disconnected = handler
+	default:
+		if s.handlers == nil {
+			s.handlers = make(map[string]HandlerFunc)
+		}
+		s.handlers[name] = handler
 	}
-	s.handlers[name] = handler
 }
 
 // Broadcast sends the passed message to all clients
@@ -66,13 +82,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer s.sockets.Delete(so.id) // Defer un-register the connection
 
 	// Trigger a connected listener if one is defined
-	if fn, ok := s.handlers["connected"]; ok {
-		fn(so, `{"type":"connected"}`)
+	if s.connected != nil {
+		s.connected(so, `{"type":"connected"}`)
 	}
 
-	// Trigger a disconnected listener if one is defined
-	if fn, ok := s.handlers["disconnected"]; ok {
-		defer fn(so, `{"type":"disconnected"}`)
+	// Trigger an internal disconnected listener if one is defined
+	if s.disconnected != nil {
+		defer s.disconnected(so, `{"type":"disconnected"}`)
 	}
 
 	// For every message that comes through on the connection
