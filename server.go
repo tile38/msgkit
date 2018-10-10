@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -94,7 +95,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// For every message that comes through on the connection
 	for {
 		// Read the message off of the connection
-		t, d, err := so.readMessage()
+		msg, err := so.readMessage()
 		if err != nil {
 			so.Send("error", "Failed to read message")
 			return
@@ -102,8 +103,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		// If a handler exists for the message type, handle it, otherwise emit
 		// an error
-		if fn, ok := s.handlers[t]; ok {
-			fn(so, d)
+		if fn, ok := s.handlers[gjson.Get(msg, "type").String()]; ok {
+			fn(so, msg)
 		} else {
 			so.Send("error", "Unknown type")
 		}

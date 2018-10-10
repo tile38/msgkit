@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/tidwall/gjson"
 )
 
 // Socket is msgkit socket connection containing context about the connection
@@ -82,14 +81,11 @@ func (s *Socket) close() { s.conn.Close() }
 
 // readMessage reads the next message off of the connection, returning the type
 // and data decoded from the message
-func (s *Socket) readMessage() (string, string, error) {
+func (s *Socket) readMessage() (string, error) {
 	// Read the next message off of the connection
 	_, msgb, err := s.conn.ReadMessage()
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-
-	// JSON decode and return the message type and data
-	return gjson.GetBytes(msgb, "type").String(),
-		gjson.GetBytes(msgb, "data").String(), nil
+	return string(msgb), nil
 }
