@@ -102,10 +102,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		// If a handler exists for the message type, handle it, otherwise emit
 		// an error
-		if fn, ok := s.handlers[m.Type]; ok {
-			fn(so, m)
-		} else {
-			so.Send("error", "Unknown type")
-		}
+		go func() {
+			if fn, ok := s.handlers[m.Type]; ok {
+				fn(so, m)
+			} else {
+				so.Send("error", "Unknown type")
+			}
+		}()
 	}
 }

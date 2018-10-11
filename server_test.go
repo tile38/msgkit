@@ -20,18 +20,18 @@ func TestHandler(t *testing.T) {
 	s := NewServer(nil)
 
 	// create handlers
-	s.Handle("h0", func(so *Socket, msg string) { so.Send("h0", msg) })
-	s.Handle("h1", func(so *Socket, msg string) { so.Send("h1", msg) })
-	s.Handle("h2", func(so *Socket, msg string) { so.Send("h2", msg) })
+	s.Handle("h0", func(so *Socket, msg *Message) { so.Send("h0", msg.Data) })
+	s.Handle("h1", func(so *Socket, msg *Message) { so.Send("h1", msg.Data) })
+	s.Handle("h2", func(so *Socket, msg *Message) { so.Send("h2", msg.Data) })
 
 	// count the number of opens
 	var opened int32
-	s.Handle("connected", func(_ *Socket, _ string) { atomic.AddInt32(&opened, 1) })
+	s.Handle("connected", func(_ *Socket, _ *Message) { atomic.AddInt32(&opened, 1) })
 
 	// count/wait on all closes
 	var cwg sync.WaitGroup
 	cwg.Add(connsN)
-	s.Handle("disconnected", func(_ *Socket, _ string) { cwg.Done() })
+	s.Handle("disconnected", func(_ *Socket, _ *Message) { cwg.Done() })
 
 	srv := &http.Server{Addr: addr}
 	http.Handle("/ws", s)
