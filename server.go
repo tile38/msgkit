@@ -21,11 +21,11 @@ const (
 
 // Server contains all required dependencies to run a msgkit websocket server
 type Server struct {
-	sockets      sync.Map               // Map of Sockets
-	upgrader     *websocket.Upgrader    // Shared upgrader
-	connected    HandlerFunc            // Handler fired on a connection
-	disconnected HandlerFunc            // Handler fired on a disconnection
-	handlers     map[string]HandlerFunc // All user-defined event handlers
+	sockets  sync.Map               // Map of Sockets
+	upgrader *websocket.Upgrader    // Shared upgrader
+	open     HandlerFunc            // Handler fired on a connection
+	close    HandlerFunc            // Handler fired on a disconnection
+	handlers map[string]HandlerFunc // All user-defined event handlers
 }
 
 // HandlerFunc is a type that defines the function signature of a msgkit request
@@ -47,9 +47,9 @@ func NewServer(u *websocket.Upgrader) *Server {
 func (s *Server) Handle(name string, handler HandlerFunc) {
 	switch name {
 	case EventConnected:
-		s.connected = handler
+		s.open = handler
 	case EventDisconnected:
-		s.disconnected = handler
+		s.close = handler
 	default:
 		if s.handlers == nil {
 			s.handlers = make(map[string]HandlerFunc)
@@ -82,13 +82,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer s.sockets.Delete(so.id) // Defer un-register the connection
 
 	// Trigger a connected listener if one is defined
-	if s.connected != nil {
-		s.connected(so, NewMessage(EventConnected))
+	if s.open != nil {
+		s.open(so, NewMessage(EventConnected))
 	}
 
 	// Trigger an internal disconnected listener if one is defined
-	if s.disconnected != nil {
-		defer s.disconnected(so, NewMessage(EventDisconnected))
+	if s.close != nil {
+		defer s.close(so, NewMessage(EventDisconnected))
 	}
 
 	// For every message that comes through on the connection
