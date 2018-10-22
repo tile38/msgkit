@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/tidwall/gjson"
 )
 
 // Socket is msgkit socket connection containing context about the connection
@@ -63,18 +62,25 @@ func (s *Socket) Context() interface{} {
 func (s *Socket) Request() *http.Request { return s.req }
 
 // Send broadcasts a message over the socket
-func (s *Socket) Send(name string, msgs ...interface{}) {
+func (s *Socket) Send(name string, msgs ...interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(msgs) == 0 {
-		s.conn.WriteMessage(1, []byte(fmt.Sprintf(`{"type":"%s"}`, name)))
+		if err := s.conn.WriteMessage(1, []byte(fmt.Sprintf(`{"type":"%s"}`,
+			name))); err != nil {
+			return err
+		}
 	} else {
 		for _, msg := range msgs {
 			b, _ := json.Marshal(msg)
-			s.conn.WriteMessage(1,
-				[]byte(fmt.Sprintf(`{"type":"%s","data":%s}`, name, string(b))))
+			if err := s.conn.WriteMessage(1,
+				[]byte(fmt.Sprintf(`{"type":"%s","data":%s}`, name,
+					string(b)))); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 // close closes the websocket connection
@@ -82,14 +88,11 @@ func (s *Socket) close() { s.conn.Close() }
 
 // readMessage reads the next message off of the connection, returning the type
 // and data decoded from the message
-func (s *Socket) readMessage() (string, string, error) {
+func (s *Socket) readMessage() (*Message, error) {
 	// Read the next message off of the connection
 	_, msgb, err := s.conn.ReadMessage()
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
-
-	// JSON decode and return the message type and data
-	return gjson.GetBytes(msgb, "type").String(),
-		gjson.GetBytes(msgb, "data").String(), nil
+	return ParseMessage(msgb), nil
 }

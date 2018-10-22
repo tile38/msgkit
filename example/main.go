@@ -12,7 +12,7 @@ func main() {
 	s := msgkit.NewServer(nil)
 
 	// Bind a response handler to any JSON message with the "type" of "Echo"
-	s.On("echo", func(so *msgkit.Socket, msg string) {
+	s.Handle("echo", func(so *msgkit.Socket, msg string) {
 		so.Send("echo", "Hello World!")
 	})
 

@@ -12,16 +12,25 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	// EventConnected is an event name that is fired when a client connects
+	EventConnected = "connected"
+	// EventDisconnected is an event name that is fired when a client disconnects
+	EventDisconnected = "disconnected"
+)
+
 // Server contains all required dependencies to run a msgkit websocket server
 type Server struct {
 	sockets  sync.Map               // Map of Sockets
 	upgrader *websocket.Upgrader    // Shared upgrader
-	handlers map[string]HandlerFunc // All event handlers
+	open     HandlerFunc            // Handler fired on a connection
+	close    HandlerFunc            // Handler fired on a disconnection
+	handlers map[string]HandlerFunc // All user-defined event handlers
 }
 
 // HandlerFunc is a type that defines the function signature of a msgkit request
 // handler
-type HandlerFunc func(so *Socket, msg string)
+type HandlerFunc func(so *Socket, msg *Message) error
 
 // NewServer creates a new Server using the passed custom websocket upgrader
 func NewServer(u *websocket.Upgrader) *Server {
@@ -34,12 +43,19 @@ func NewServer(u *websocket.Upgrader) *Server {
 	}
 }
 
-// On binds a handler for a specified type
-func (s *Server) On(name string, handler HandlerFunc) {
-	if s.handlers == nil {
-		s.handlers = make(map[string]HandlerFunc)
+// Handle binds a handler for a specified type
+func (s *Server) Handle(name string, handler HandlerFunc) {
+	switch name {
+	case EventConnected:
+		s.open = handler
+	case EventDisconnected:
+		s.close = handler
+	default:
+		if s.handlers == nil {
+			s.handlers = make(map[string]HandlerFunc)
+		}
+		s.handlers[name] = handler
 	}
-	s.handlers[name] = handler
 }
 
 // Broadcast sends the passed message to all clients
@@ -66,19 +82,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer s.sockets.Delete(so.id) // Defer un-register the connection
 
 	// Trigger a connected listener if one is defined
-	if fn, ok := s.handlers["connected"]; ok {
-		fn(so, `{"type":"connected"}`)
+	if s.open != nil {
+		s.open(so, NewMessage(EventConnected))
 	}
 
-	// Trigger a disconnected listener if one is defined
-	if fn, ok := s.handlers["disconnected"]; ok {
-		defer fn(so, `{"type":"disconnected"}`)
+	// Trigger an internal disconnected listener if one is defined
+	if s.close != nil {
+		defer s.close(so, NewMessage(EventDisconnected))
 	}
 
 	// For every message that comes through on the connection
 	for {
 		// Read the message off of the connection
-		t, d, err := so.readMessage()
+		m, err := so.readMessage()
 		if err != nil {
 			so.Send("error", "Failed to read message")
 			return
@@ -86,10 +102,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		// If a handler exists for the message type, handle it, otherwise emit
 		// an error
-		if fn, ok := s.handlers[t]; ok {
-			fn(so, d)
-		} else {
-			so.Send("error", "Unknown type")
-		}
+		go func() {
+			if fn, ok := s.handlers[m.Type]; ok {
+				if err := fn(so, m); err != nil {
+					log.Println("fn:", err)
+					return
+				}
+			} else {
+				so.Send("error", "Unknown type")
+			}
+		}()
 	}
 }
