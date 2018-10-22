@@ -30,7 +30,7 @@ type Server struct {
 
 // HandlerFunc is a type that defines the function signature of a msgkit request
 // handler
-type HandlerFunc func(so *Socket, msg *Message)
+type HandlerFunc func(so *Socket, msg *Message) error
 
 // NewServer creates a new Server using the passed custom websocket upgrader
 func NewServer(u *websocket.Upgrader) *Server {
@@ -104,7 +104,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// an error
 		go func() {
 			if fn, ok := s.handlers[m.Type]; ok {
-				fn(so, m)
+				if err := fn(so, m); err != nil {
+					log.Println("fn:", err)
+					return
+				}
 			} else {
 				so.Send("error", "Unknown type")
 			}

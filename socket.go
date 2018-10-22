@@ -62,18 +62,25 @@ func (s *Socket) Context() interface{} {
 func (s *Socket) Request() *http.Request { return s.req }
 
 // Send broadcasts a message over the socket
-func (s *Socket) Send(name string, msgs ...interface{}) {
+func (s *Socket) Send(name string, msgs ...interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(msgs) == 0 {
-		s.conn.WriteMessage(1, []byte(fmt.Sprintf(`{"type":"%s"}`, name)))
+		if err := s.conn.WriteMessage(1, []byte(fmt.Sprintf(`{"type":"%s"}`,
+			name))); err != nil {
+			return err
+		}
 	} else {
 		for _, msg := range msgs {
 			b, _ := json.Marshal(msg)
-			s.conn.WriteMessage(1,
-				[]byte(fmt.Sprintf(`{"type":"%s","data":%s}`, name, string(b))))
+			if err := s.conn.WriteMessage(1,
+				[]byte(fmt.Sprintf(`{"type":"%s","data":%s}`, name,
+					string(b)))); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 // close closes the websocket connection
