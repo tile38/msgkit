@@ -13,7 +13,6 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-	const addr = "localhost:17892"
 	const connsN = 10  // number of concurrent sockets
 	const msgsN = 1000 // number of messages per socket
 
